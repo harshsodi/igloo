@@ -1,0 +1,6 @@
+{
+    "url": "https://<instance>.service-now.com/",
+    "username": "",
+    "password": "",
+    "app_name": ""
+}

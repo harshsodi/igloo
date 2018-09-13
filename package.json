@@ -1,0 +1,94 @@
+{
+    "name": "igloo",
+    "displayName": "Igloo",
+    "description": "Feel like home while working in SNOW",
+    "version": "1.0.2",
+    "publisher": "Unknown",
+    "icon": "icon.png",
+    "engines": {
+        "vscode": "^1.25.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "activationEvents": [
+        "workspaceContains:iglooconfig.txt"
+    ],
+    "main": "./extension",
+    "contributes": {
+        "commands": [
+            {
+                "command": "extension.downloadAll",
+                "title": "Pull all files from snow instance"
+            },
+            {
+                "command": "extension.showDiff",
+                "title": "Show diff between local file and that on snow"
+            },
+            {
+                "command": "extension.uploadToSnow",
+                "title": "Push the file to snow"
+            },
+            {
+                "command": "extension.downloadFromSnow",
+                "title": "Pull current file from snow"
+            },
+            {
+                "command": "extension.establishStructure",
+                "title": "Initiate the directory structure"
+            },
+            {
+                "command": "extension.showExternalScript",
+                "title": "Fetch a script which is not in the application scope"
+            }
+        ],
+        "keybindings": [
+            {
+                "command": "extension.downloadAll",
+                "key": "ctrl+alt+a",
+                "mac": "cmd+a"
+            },
+            {
+                "command": "extension.showDiff",
+                "key": "ctrl+alt+d",
+                "mac": "cmd+d",
+                "when": "editorTextFocus"
+            },
+            {
+                "command": "extension.uploadToSnow",
+                "key": "ctrl+alt+e",
+                "mac": "cmd+e",
+                "when": "editorTextFocus"
+            },
+            {
+                "command": "extension.downloadFromSnow",
+                "key": "ctrl+alt+i",
+                "mac": "cmd+i",
+                "when": "editorTextFocus"
+            },
+            {
+                "command": "extension.showExternalScript",
+                "key": "ctrl+alt+f",
+                "mac": "cmd+f",
+                "when": "editorHasSelection"
+            },
+            {
+                "command": "extension.establishStructure",
+                "key": "ctrl+alt+s",
+                "mac": "cmd+s"
+            }
+        ]
+    },
+    "scripts": {
+        "postinstall": "node ./node_modules/vscode/bin/install",
+        "test": "node ./node_modules/vscode/bin/test"
+    },
+    "dependencies": {
+        "typescript": "^2.6.1",
+        "vscode": "^1.1.21",
+        "eslint": "^4.11.0",
+        "superagent": "3.5.2",
+        "@types/node": "^8.10.25",
+        "@types/mocha": "^2.2.42"
+    }
+}
