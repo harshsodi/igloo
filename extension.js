@@ -17,16 +17,18 @@ const constants = require('./constants');
  */
 function activate(context) {
 
-    console.log('Igloo has been activated');
+    vscode.window.setStatusBarMessage("Igloo : activating");
+    console.log('Igloo is being activated');
 
     var sync_manager = new SyncManager.SyncManager();
     var fs_manager = new FileSystemManager.FileSystemManager();
     var utils = new Utils.Utils();
     
+    console.log('Igloo is now active');
     //Display the message in status bar to notify the activity of extension
     vscode.window.setStatusBarMessage("Igloo : active");
 
-    //Create/Repair the directory structure as expected 
+    //Create/Repair the directory structure as expected  
     sync_manager.createAndMaintainStructure();
 
     let downloadAll = vscode.commands.registerCommand('extension.downloadAll', function () {
@@ -50,6 +52,7 @@ function activate(context) {
 
     let downloadFromSnow = vscode.commands.registerCommand('extension.downloadFromSnow', function () {
         //Download the current file from snow
+        sync_manager.downloadSingleFile();
     });
 
     let showExternalScript = vscode.commands.registerCommand('extension.showExternalScript', function () {

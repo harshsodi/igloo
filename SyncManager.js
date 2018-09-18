@@ -97,6 +97,8 @@ class SyncManager {
         global_register = {};
         this._loadGlobalRegister();
         var table_name = file_type;
+
+        // set parameter to filter by application scope
         var query_params = {
             "sysparm_query" : "sys_scope.name="+ this.app_name
         };
@@ -104,20 +106,24 @@ class SyncManager {
         var success = true;
         var all_files_response = await this.http_client.get(table_name, query_params=query_params).then(
             response=>{
-                console.log("Success in donwloading all files : " + table_name);
                 return response.body;
             }, 
-            error=>{
+            err=>{
                 success = false;
-                vscode.window.showErrorMessage("Error while downloading " + table_name);
-                return error;
+                vscode.window.showErrorMessage("Error (" + err + ") while downloading file type " + table_name);
+                console.log(err);
+                return err;
             })
         
         if(!success) {
-            console.log("Failed to download " + file_type);
-            return;
+            //If downloading failed
+            return false;
+        } else if(all_files_response.result.length == 0) {
+            vscode.window.showWarningMessage("No " + constants.TYPE_DIRECTORY_MAP[file_type] + " scripts found");
+            console.log("No " + file_type + " scripts found");
+            return true;
         }
-    
+        
         var result = all_files_response.result
         var file_list_length = result.length;
 
@@ -138,22 +144,120 @@ class SyncManager {
                 result[i].sys_name + ".js"
             )
             
-            this.fs_manager.writeFile(file_path, result[i].script);
+            try {
+                this.fs_manager.writeFile(file_path, result[i].script);
             
-            if(!global_register[file_type]) {
-                global_register[file_type] = {}
-            }
+                if(!global_register[file_type]) {
+                    global_register[file_type] = {}
+                }
 
-            global_register[file_type][result[i].sys_name] = {
-                "name" : result[i].sys_name,
-                "sys_created_on" : result[i].sys_created_on,
-                "sys_updated_on" : result[i].sys_updated_on,
-                "sys_class_name" : result[i].sys_class_name,
-                "sys_id" : result[i].sys_id
-            }            
-            this.fs_manager.writeFile(register_path, JSON.stringify(global_register, null, 4))            
+                global_register[file_type][result[i].sys_name] = {
+                    "name" : result[i].sys_name,
+                    "sys_created_on" : result[i].sys_created_on,
+                    "sys_updated_on" : result[i].sys_updated_on,
+                    "sys_class_name" : result[i].sys_class_name,
+                    "sys_id" : result[i].sys_id
+                }            
+                this.fs_manager.writeFile(register_path, JSON.stringify(global_register, null, 4))
+            }
+            catch(err) {
+                vscode.window.showErrorMessage("An error occured while downloading.");
+            }
+                        
         }
         console.log("Collected " + file_type + " files");
+        return true;
+    }
+
+    /*
+     * @current_file_name
+     * Download the given file from the given table on SNOW
+     * Retuen a promise that resolves to the file contents
+     */
+    _downloadSingleFile(file_name, table_name) {
+        var query_params = {
+            "sysparm_query" : "name="+ file_name + "^sys_scope.name=" + this.app_name
+        };
+        return this.http_client.get(table_name, query_params=query_params);
+    }
+
+    downloadSingleFile() {
+        this._loadConfig();
+
+        const file_type = this.utils.getFileTypeByDir(this.utils.getDirName());
+        const file_name = this.utils.getFileName().replace("\.js", "");
+        const table = file_type;
+        
+        this._downloadSingleFile(file_name, table).then(
+            result=>{
+                const resp = result.body;
+                if(resp.result.length) {
+                    var res = resp.result[0];
+
+                    const file_path = path.join(
+                        this.utils.getRootPath(), 
+                        constants.outdir, 
+                        constants.TYPE_DIRECTORY_MAP[res.sys_class_name],
+                        res.sys_name + ".js"
+                    )
+                    
+                    try {
+                        this.fs_manager.writeFile(file_path, res.script);
+                        var register = JSON.parse(this._readRegister());
+                        const register_path = this.utils.getRegisterPath();
+                        if(!register[file_type]) {
+                            register[file_type] = {};    
+                        }
+                        register[file_type][res.sys_name] = {
+                            "name" : res.sys_name,
+                            "sys_created_on" : res.sys_created_on,
+                            "sys_updated_on" : res.sys_updated_on,
+                            "sys_class_name" : res.sys_class_name,
+                            "sys_id" : res.sys_id
+                        }            
+                        this.fs_manager.writeFile(register_path, JSON.stringify(register, null, 4));
+                        vscode.window.showInformationMessage("Downloaded " + file_name);
+                    }
+                    catch(err) {
+                        vscode.window.showInformationMessage("An error has occured. Please download the script again to maintain consistency.");
+                        console.log("An error has occured. Please download the script again to maintain consistency.");
+                        console.log(err);
+                    }
+                }
+                else {
+                    vscode.window.showErrorMessage("Could not find " + file_name);
+                }
+            },
+            err=>{
+                console.log("Err");
+                console.log(err);
+                vscode.window.showErrorMessage("Error (" + err + ") while fetching " + file_name);
+            }
+        );
+    }
+
+    /*
+     * Call the download_single_type for each file_type mentioned in the constants file
+     */
+    async downloadAll() {
+        console.log("Downloading all files from SNOW.");
+        this.createAndMaintainStructure();
+        this._loadConfig();
+        var prom_list = [];
+        for(var f_index=0, f_list_length = constants.FILE_TYPES.length; f_index < f_list_length; f_index++) {
+            var y = this._downloadSingleTypeOfFile(constants.FILE_TYPES[f_index]);
+            prom_list.push(y);
+        }
+
+        Promise.all(prom_list).then(function(values) {
+            //Count of how many file types failed to download
+            var failures = 0;
+            values.map(item=>{
+                failures = item ? failures : failures+1;
+            })
+            console.log("Downloaded complete. (" + failures + " failed)");
+            vscode.window.showInformationMessage("Downloaded complete. (" + failures + " failed)");
+        });
     }
 
     /*
@@ -180,27 +284,7 @@ class SyncManager {
         }
 
         //create register file
-        this.fs_manager._createRegisterFile(outpath);
-    
-    }
-
-    /*
-     * Call the download_single_type for each file_type mentioned in the constants file
-     */
-    async downloadAll() {
-        console.log("Downloading all files from SNOW.");
-        this.createAndMaintainStructure();
-        this._loadConfig();
-        var prom_list = [];
-        for(var f_index=0, f_list_length = constants.FILE_TYPES.length; f_index < f_list_length; f_index++) {
-            var y = this._downloadSingleTypeOfFile(constants.FILE_TYPES[f_index]);
-            prom_list.push(y);
-        }
-
-        Promise.all(prom_list).then(function(values) {
-            console.log("Downloaded all files.");
-            vscode.window.showInformationMessage("Downloaded all files");
-        });
+        this.fs_manager._createRegisterFile(outpath);    
     }
 
     /*
@@ -208,6 +292,7 @@ class SyncManager {
      * Give user option to select type of comparision : Local->Remote or Remote->Local
      */
     async showDiff() {
+        this._loadConfig();
         console.log("Diffing");
      
         var selection = ""
@@ -217,8 +302,10 @@ class SyncManager {
                 return res;
             },
             err => {
-                selection = "undefined"
-                return "undefined"
+                console.log("Error while resolving QuickPick selection.");
+                console.log(err);
+                selection = "undefined";
+                return "undefined";
             }
         );
         
@@ -240,7 +327,7 @@ class SyncManager {
 
         console.log("Looking for " + current_file_name + " in " + table_name);
         
-        this.downloadSingleFile(current_file_name, table_name).then(
+        this._downloadSingleFile(current_file_name, table_name).then(
             result=>{
                 const resp = result.body;
                 if(resp.result.length) {
@@ -274,27 +361,16 @@ class SyncManager {
             err=>{
                 console.log("Err");
                 console.log(err);
-                vscode.window.showErrorMessage("Error while fetching " + current_file_name);
+                vscode.window.showErrorMessage("Error (" + err + ") while fetching " + current_file_name);
             }
         );
-    }
-
-    /*
-     * @current_file_name
-     * Download the given file from the given table on SNOW
-     * Retuen a promise that resolves to the file contents
-     */
-    downloadSingleFile(file_name, table_name) {
-        var query_params = {
-            "sysparm_query" : "name="+ file_name + "^sys_scope.name=" + this.app_name
-        };
-        return this.http_client.get(table_name, query_params=query_params);
     }
 
     /*
      * Upload the given file to the given table on SNOW
      */
     async uploadFile(script) {
+        this._loadConfig();
         console.log("Uploading " + this.utils.getFileName());
         var register = this._readRegister()
         register = JSON.parse(register);
@@ -316,13 +392,14 @@ class SyncManager {
             vscode.window.showInformationMessage("Uploaded " + file_name);
             console.log(remote_update_ime);
         }, err=>{
-            vscode.window.showErrorMessage("Failed to upload " + file_name);
+            vscode.window.showErrorMessage("Error (" + err + ") while uploading " + file_name);
             console.log("Failed to upload " + file_name);
             console.log(err);
         })
     }
 
     async showExternalScript(external_file_name) {
+        this._loadConfig();
         const current_file_name = this.utils.getFileName().replace("\.js", "");
         const dir = this.utils.getDirName();
         const file_type = this.utils.getFileTypeByDir(dir);
@@ -359,7 +436,11 @@ class SyncManager {
 
         console.log("Looking for " + external_file_name + " in " + table_name);
         
-        this.downloadSingleFile(external_file_name, table_name).then(
+        var query_params = {
+            "sysparm_query" : "name="+ external_file_name
+        };
+        
+        this.http_client.get(table_name, query_params=query_params).then(
             result=>{
                 const resp = result.body;
                 if(resp.result.length) {
@@ -377,7 +458,7 @@ class SyncManager {
             err=>{
                 console.log("Err");
                 console.log(err);
-                vscode.window.showErrorMessage("Error while fetching " + external_file_name);
+                vscode.window.showErrorMessage("Error (" + err + ") while fetching " + external_file_name);
             }
         );
 

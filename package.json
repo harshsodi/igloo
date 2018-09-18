@@ -2,14 +2,21 @@
     "name": "igloo",
     "displayName": "Igloo",
     "description": "Feel like home while working in SNOW",
-    "version": "1.0.2",
-    "publisher": "Unknown",
+    "version": "1.0.5",
+    "publisher": "harshsodiwala",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/harshsodi/igloo.git"
+    },
     "icon": "icon.png",
     "engines": {
         "vscode": "^1.25.0"
     },
     "categories": [
         "Other"
+    ],
+    "keywords": [
+        "servicenow"
     ],
     "activationEvents": [
         "workspaceContains:iglooconfig.txt"
@@ -39,43 +46,40 @@
             },
             {
                 "command": "extension.showExternalScript",
-                "title": "Fetch a script which is not in the application scope"
+                "title": "Fetch and show script"
             }
         ],
         "keybindings": [
             {
                 "command": "extension.downloadAll",
                 "key": "ctrl+alt+a",
-                "mac": "cmd+a"
+                "mac": "ctrl+alt+a"
             },
             {
                 "command": "extension.showDiff",
                 "key": "ctrl+alt+d",
-                "mac": "cmd+d",
-                "when": "editorTextFocus"
+                "mac": "ctrl+alt+d"
             },
             {
                 "command": "extension.uploadToSnow",
                 "key": "ctrl+alt+e",
-                "mac": "cmd+e",
-                "when": "editorTextFocus"
+                "mac": "ctrl+alt+e"
             },
             {
                 "command": "extension.downloadFromSnow",
                 "key": "ctrl+alt+i",
-                "mac": "cmd+i",
-                "when": "editorTextFocus"
+                "mac": "ctrl+alt+i"
             },
             {
                 "command": "extension.showExternalScript",
                 "key": "ctrl+alt+f",
-                "mac": "cmd+f",
+                "mac": "ctrl+alt+f",
                 "when": "editorHasSelection"
             },
             {
                 "command": "extension.establishStructure",
-                "key": "ctrl+alt+s",
-                "mac": "cmd+s"
+                "key": "ctrl+alt+r",
+                "mac": "ctrl+alt+r"
             }
         ]
     },
