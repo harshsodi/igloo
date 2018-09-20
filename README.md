@@ -65,3 +65,8 @@ Tip : Have a look at the diff (ctrl + alt + d / ctrl + option + d) with remote f
 >3. UI Actions
 >4. Business rules
 >5. Client Scripts
+>6. Scheduled Script Executions
+
+>Troubleshooting :
+>If something goes terribly wrong and most functionalities stop working, try deleting the "Servicenow"
+>folder and download again using ctrl + alt + a / ctrl + option + a
