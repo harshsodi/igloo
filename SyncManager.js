@@ -181,8 +181,30 @@ class SyncManager {
         return this.http_client.get(table_name, query_params=query_params);
     }
 
-    downloadSingleFile() {
+    async downloadSingleFile() {
         this._loadConfig();
+
+        var selection = "";
+        await vscode.window.showQuickPick(['Confirm Import', 'Compare with local', 'Abort']).then(
+            res => {
+                selection = res ? res : "undefined";
+                return res; //TODO : Remove
+            },
+            err => {
+                console.log("No selection made");
+                console.log(err);
+                selection = "undefined";
+                return "undefined"; //TODO : remove
+            }
+        );
+
+        if(selection == "Abort" || selection == "undefined") {
+            vscode.window.showWarningMessage("Export operation aborted");
+            return;
+        } else if(selection == "Compare with local") {
+            this.showDiff("Local ↔ Remote");
+            return;
+        }
 
         const file_type = this.utils.getFileTypeByDir(this.utils.getDirName());
         const file_name = this.utils.getFileName().replace("\.js", "");
@@ -291,27 +313,33 @@ class SyncManager {
      * Compare the current file wth its counterpart on SNOW instance
      * Give user option to select type of comparision : Local->Remote or Remote->Local
      */
-    async showDiff() {
+    async showDiff(defaultSelection=null) {
         this._loadConfig();
         console.log("Diffing");
      
-        var selection = ""
-        await vscode.window.showQuickPick(['Remote ↔ Local', 'Local ↔ Remote']).then(
-            res => {
-                selection = res ? res : "undefined";
-                return res;
-            },
-            err => {
-                console.log("Error while resolving QuickPick selection.");
-                console.log(err);
-                selection = "undefined";
-                return "undefined";
-            }
-        );
-        
+        var selection = "";
+
+        if(defaultSelection) {
+            selection = defaultSelection;
+        }
+        else {
+            await vscode.window.showQuickPick(['Remote ↔ Local', 'Local ↔ Remote']).then(
+                res => {
+                    selection = res ? res : "undefined";
+                    return res;
+                },
+                err => {
+                    console.log("Error while resolving QuickPick selection");
+                    console.log(err);
+                    selection = "undefined";
+                    return "undefined";
+                }
+            );
+        }
+
         if(selection == "undefined") {
-            vscode.window.showErrorMessage("Could not display diff");
-            return
+            vscode.window.showWarningMessage("Displaying diff operation aborted");
+            return;
         }
     
         const current_file_name = this.utils.getFileName().replace("\.js", "");
@@ -338,11 +366,10 @@ class SyncManager {
                     }).then(doc => {
                         console.log("Showing diff");
                         
-                        var title = "Remote ↔ Local"
+                        var title = selection;
                         var leftUri = doc.uri;
                         var rightUri = vscode.window.activeTextEditor.document.uri
                         if(selection == "Local ↔ Remote") {
-                            var title = "Local ↔ Remote"
                             var leftUri = vscode.window.activeTextEditor.document.uri;
                             var rightUri = doc.uri;
                         }
@@ -371,6 +398,30 @@ class SyncManager {
      */
     async uploadFile(script) {
         this._loadConfig();
+
+        //Ask for confirmation using QuickPick
+        var selection = "";
+        await vscode.window.showQuickPick(['Confirm Export', 'Compare with remote', 'Abort']).then(
+            res => {
+                selection = res ? res : "undefined";
+                return res; //TODO : Remove
+            },
+            err => {
+                console.log("No selection made");
+                console.log(err);
+                selection = "undefined";
+                return "undefined"; //TODO : remove
+            }
+        );
+
+        if(selection == "Abort" || selection == "undefined") {
+            vscode.window.showWarningMessage("Export operation aborted");
+            return;
+        } else if(selection == "Compare with remote") {
+            this.showDiff("Remote ↔ Local");
+            return;
+        }
+
         console.log("Uploading " + this.utils.getFileName());
         var register = this._readRegister()
         register = JSON.parse(register);
