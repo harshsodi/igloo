@@ -2,7 +2,7 @@
     "name": "igloo",
     "displayName": "Igloo",
     "description": "Feel like home while working in SNOW",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "publisher": "harshsodiwala",
     "repository": {
         "type": "git",
@@ -26,27 +26,27 @@
         "commands": [
             {
                 "command": "extension.downloadAll",
-                "title": "Pull all files from snow instance"
+                "title": "Pull all scripts from SNOW instance"
             },
             {
                 "command": "extension.showDiff",
-                "title": "Show diff between local file and that on snow"
+                "title": "Show diff between local script and that on SNOW instance"
             },
             {
                 "command": "extension.uploadToSnow",
-                "title": "Push the file to snow"
+                "title": "Push the currently open file to SNOW instance"
             },
             {
                 "command": "extension.downloadFromSnow",
-                "title": "Pull current file from snow"
+                "title": "Pull the currently open file from SNOW instance"
             },
             {
                 "command": "extension.establishStructure",
-                "title": "Initiate the directory structure"
+                "title": "Initiate/Repair the directory structure"
             },
             {
                 "command": "extension.showExternalScript",
-                "title": "Fetch and show script"
+                "title": "Show the included or refered script"
             }
         ],
         "keybindings": [
