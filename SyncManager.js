@@ -102,7 +102,7 @@ class SyncManager {
         var query_params = {
             "sysparm_query" : "sys_scope.name="+ this.app_name
         };
-        
+
         var success = true;
         var all_files_response = await this.http_client.get(table_name, query_params=query_params).then(
             response=>{
@@ -114,7 +114,7 @@ class SyncManager {
                 console.log(err);
                 return err;
             })
-        
+
         if(!success) {
             //If downloading failed
             return false;
@@ -123,7 +123,7 @@ class SyncManager {
             console.log("No " + file_type + " scripts found");
             return true;
         }
-        
+
         var result = all_files_response.result
         var file_list_length = result.length;
 
@@ -131,22 +131,22 @@ class SyncManager {
         const register_path = this.utils.getRegisterPath();
 
         for(var i=0; i<file_list_length; i++) {
-            
-            if(global_register[file_type] && global_register[file_type][result[i].name]) {
-                console.log("File already present");
-                continue;
-            }
-            
-            const file_path = path.join(
-                root_path, 
-                constants.outdir, 
-                constants.TYPE_DIRECTORY_MAP[result[i].sys_class_name],
-                result[i].sys_name + ".js"
-            )
-            
+
             try {
+                if(global_register[file_type] && global_register[file_type][result[i].name]) {
+                    console.log("File already present");
+                    continue;
+                }
+
+                const file_path = path.join(
+                    root_path, 
+                    constants.outdir, 
+                    constants.TYPE_DIRECTORY_MAP[file_type],
+                    result[i].sys_name + ".js"
+                )
+
                 this.fs_manager.writeFile(file_path, result[i].script);
-            
+
                 if(!global_register[file_type]) {
                     global_register[file_type] = {}
                 }
@@ -155,15 +155,15 @@ class SyncManager {
                     "name" : result[i].sys_name,
                     "sys_created_on" : result[i].sys_created_on,
                     "sys_updated_on" : result[i].sys_updated_on,
-                    "sys_class_name" : result[i].sys_class_name,
+                    "sys_class_name" : file_type,
                     "sys_id" : result[i].sys_id
                 }            
                 this.fs_manager.writeFile(register_path, JSON.stringify(global_register, null, 4))
             }
             catch(err) {
-                vscode.window.showErrorMessage("An error occured while downloading.");
+                vscode.window.showErrorMessage("Error while downloading + " + file_type + " s");
             }
-                        
+
         }
         console.log("Collected " + file_type + " files");
         return true;
@@ -209,7 +209,7 @@ class SyncManager {
         const file_type = this.utils.getFileTypeByDir(this.utils.getDirName());
         const file_name = this.utils.getFileName().replace("\.js", "");
         const table = file_type;
-        
+
         this._downloadSingleFile(file_name, table).then(
             result=>{
                 const resp = result.body;
@@ -219,10 +219,10 @@ class SyncManager {
                     const file_path = path.join(
                         this.utils.getRootPath(), 
                         constants.outdir, 
-                        constants.TYPE_DIRECTORY_MAP[res.sys_class_name],
+                        constants.TYPE_DIRECTORY_MAP[file_type],
                         res.sys_name + ".js"
                     )
-                    
+
                     try {
                         this.fs_manager.writeFile(file_path, res.script);
                         var register = JSON.parse(this._readRegister());
@@ -234,7 +234,7 @@ class SyncManager {
                             "name" : res.sys_name,
                             "sys_created_on" : res.sys_created_on,
                             "sys_updated_on" : res.sys_updated_on,
-                            "sys_class_name" : res.sys_class_name,
+                            "sys_class_name" : file_type,
                             "sys_id" : res.sys_id
                         }            
                         this.fs_manager.writeFile(register_path, JSON.stringify(register, null, 4));
@@ -294,7 +294,7 @@ class SyncManager {
 
         //get outdir path
         const outpath = path.join(root_path, constants.outdir);
-        
+
         //create outdir
         this.fs_manager.makeDir(outpath);
 
@@ -316,7 +316,6 @@ class SyncManager {
     async showDiff(defaultSelection=null) {
         this._loadConfig();
         console.log("Diffing");
-     
         var selection = "";
 
         if(defaultSelection) {
@@ -341,20 +340,20 @@ class SyncManager {
             vscode.window.showWarningMessage("Displaying diff operation aborted");
             return;
         }
-    
+
         const current_file_name = this.utils.getFileName().replace("\.js", "");
         const dir = this.utils.getDirName();
         const file_type = this.utils.getFileTypeByDir(dir);
 
         console.log("Fetching " + current_file_name + " : " + file_type);
-        
+
         const register_str = this._readRegister()
         const register = JSON.parse(register_str);
 
         var table_name = file_type;
 
         console.log("Looking for " + current_file_name + " in " + table_name);
-        
+
         this._downloadSingleFile(current_file_name, table_name).then(
             result=>{
                 const resp = result.body;
@@ -365,7 +364,6 @@ class SyncManager {
                         language : "javascript"
                     }).then(doc => {
                         console.log("Showing diff");
-                        
                         var title = selection;
                         var leftUri = doc.uri;
                         var rightUri = vscode.window.activeTextEditor.document.uri
@@ -373,7 +371,7 @@ class SyncManager {
                             var leftUri = vscode.window.activeTextEditor.document.uri;
                             var rightUri = doc.uri;
                         }
-                        
+
                         vscode.commands.executeCommand(
                             'vscode.diff', 
                             leftUri,
@@ -425,7 +423,7 @@ class SyncManager {
         console.log("Uploading " + this.utils.getFileName());
         var register = this._readRegister()
         register = JSON.parse(register);
-        
+
         const file_type = this.utils.getFileTypeByDir(this.utils.getDirName());
         const file_name = this.utils.getFileName().replace("\.js", "");
         const table = file_type;
@@ -434,8 +432,8 @@ class SyncManager {
         this.http_client.put(table, sys_id, script).then(result=>{
             var local_update_time = register[file_type][file_name]['sys_updated_on'];
             var result_obj = JSON.parse(result.text);
-            
-            
+
+
             var remote_update_ime = result_obj['result']['sys_updated_on'];
             register[file_type][file_name]['sys_updated_on'] = remote_update_ime;
             const register_path = this.utils.getRegisterPath();
@@ -456,7 +454,7 @@ class SyncManager {
         const file_type = this.utils.getFileTypeByDir(dir);
 
         console.log("Fetching " + external_file_name + " : " + current_file_name + " : " + file_type);
-        
+
         const register_str = this._readRegister()
         const register = JSON.parse(register_str);
 
@@ -479,18 +477,18 @@ class SyncManager {
                 constants.TYPE_DIRECTORY_MAP[table_name],
                 external_file_name+".js"
             )
-            
+
             var uri = vscode.Uri.file(file_path);  
             vscode.window.showTextDocument(uri);
             return;
         }
 
         console.log("Looking for " + external_file_name + " in " + table_name);
-        
+
         var query_params = {
             "sysparm_query" : "name="+ external_file_name
         };
-        
+
         this.http_client.get(table_name, query_params=query_params).then(
             result=>{
                 const resp = result.body;
