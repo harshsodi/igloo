@@ -30,20 +30,25 @@ Igloo provides an enviroment to carry out development (script related) on a serv
 ```
 Pull all the scripts from SNOW instance
 Ctrl + Alt + a [Mac : ctrl + option + a]
+Note : This command won't replace the already existing files (to avoid accident) but will download any files that exist on SNOW instance and not on local machine.
 ```
 
 ```
 Export the script (currently open in editor) to SNOW instance
 Crtl + Alt + e [Mac : ctrl + option + e]
+You will be given a choice (a dropdown at top) to proceed with export action, to check the diff first or to abort the operation.
+This will replace the code in script on SNOW instance with that in the script on the local machine.
 ```
 
 ```
-Import the script (currently open in editor) from SNOW instance
+Import the script (currently open in editor) from SNOW instance.
 Crtl + Alt + i [Mac : ctrl + option + i]
+You will be given a choice (a dropdown at top) to proceed with import action, to check the diff first or to abort the operation.
+This will replace the code in local script with that fetched from SNOW instance.
 ```
 
 ```
-Load refered or extended script
+Load refered or extended script (Similar to Goto-Definition)
 Eg. var x = new SomeScript()
 To view the SomeScript file, select text 'SomeScript' and press Ctrl + Alt  + f [Mac : ctrl + option + f]
 ```
