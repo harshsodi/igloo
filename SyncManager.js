@@ -13,7 +13,8 @@ const HttpClient = require("./HttpClient");
 const FileSystemManager = require("./FileSystemManager");
 const Utils = require('./Utils');
 
-var global_register = {}
+var global_register = {};
+var filesOnDisk = {};
 
 class SyncManager {
     constructor() {
@@ -87,13 +88,20 @@ class SyncManager {
         global_register = register_content;
     }
 
+    /* 
+     * Load the dictionary that represent the files present in the existing directories
+     */
+    _loadFilesOnDiskDict() {
+        filesOnDisk = this.fs_manager.getFileDirStructure();
+    }
+
     /*
      * @file_type : the type of file to download. Eg. sys_ui_action 
      * 
      * Download the files of the given type and save in respective directory 
      */
     async _downloadSingleTypeOfFile(file_type) {
-        console.log("Collecting " + file_type + " files");
+        console.log("Collecting " + file_type + " files"); 
         global_register = {};
         this._loadGlobalRegister();
         var table_name = file_type;
@@ -133,7 +141,7 @@ class SyncManager {
         for(var i=0; i<file_list_length; i++) {
 
             try {
-                if(global_register[file_type] && global_register[file_type][result[i].name]) {
+                if(filesOnDisk[file_type] && filesOnDisk[file_type][result[i].name]) {
                     console.log("File already present");
                     continue;
                 }
@@ -265,6 +273,7 @@ class SyncManager {
         console.log("Downloading all files from SNOW.");
         this.createAndMaintainStructure();
         this._loadConfig();
+        this._loadFilesOnDiskDict();
         var prom_list = [];
         for(var f_index=0, f_list_length = constants.FILE_TYPES.length; f_index < f_list_length; f_index++) {
             var y = this._downloadSingleTypeOfFile(constants.FILE_TYPES[f_index]);

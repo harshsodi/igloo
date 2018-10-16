@@ -20,6 +20,25 @@ class FileSystemManager {
         }
     }
 
+    getFileDirStructure() {
+        const rootPath = this.utils.getRootPath();
+        const servicenowPath = path.join(rootPath, "ServiceNow");
+        var dirList = fs.readdirSync(servicenowPath).filter(f => fs.statSync(path.join(servicenowPath, f)).isDirectory());
+        var dirPath, dirName, fileType;
+        var fileDirStructure = {};
+        for(var dirIndex=0, dirListLen = dirList.length; dirIndex<dirListLen; dirIndex++) {
+            dirName = dirList[dirIndex];
+            dirPath = path.join(servicenowPath, dirName);
+            fileType = this.utils.getFileTypeByDir(dirName);
+            fileDirStructure[fileType] = {}
+            fs.readdirSync(dirPath).map(item=>{
+                fileDirStructure[fileType][item.replace(/\.js$/, '')] = true;
+            });
+        }
+
+        return fileDirStructure;
+    }
+
     _initiateConfigFile() {
         const root_path = this.utils.getRootPath();
         const config_path = path.join(root_path, "iglooconfig.txt");
