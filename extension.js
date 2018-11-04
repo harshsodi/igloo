@@ -17,6 +17,8 @@ const constants = require('./constants');
  */
 function activate(context) {
 
+    // vscode.commands.executeCommand('workbench.action.reloadWindow');
+
     vscode.window.setStatusBarMessage("Igloo : activating");
     console.log('Igloo is being activated');
 
@@ -30,6 +32,9 @@ function activate(context) {
 
     //Create/Repair the directory structure as expected  
     sync_manager.createAndMaintainStructure();
+    
+    // Initialize git for tracing changes
+    sync_manager.initGitForTrackingChanges();
 
     let downloadAll = vscode.commands.registerCommand('extension.downloadAll', function () {
         //Download all files from snow

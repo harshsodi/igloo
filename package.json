@@ -2,7 +2,7 @@
     "name": "igloo",
     "displayName": "Igloo",
     "description": "Feel like home while working in SNOW",
-    "version": "1.0.8",
+    "version": "1.1.0",
     "publisher": "harshsodiwala",
     "repository": {
         "type": "git",
@@ -88,11 +88,12 @@
         "test": "node ./node_modules/vscode/bin/test"
     },
     "dependencies": {
-        "typescript": "^2.6.1",
-        "vscode": "^1.1.21",
-        "eslint": "^4.11.0",
-        "superagent": "3.5.2",
+        "@types/mocha": "^2.2.42",
         "@types/node": "^8.10.25",
-        "@types/mocha": "^2.2.42"
+        "eslint": "^4.11.0",
+        "simple-git": "^1.105.0",
+        "superagent": "3.5.2",
+        "typescript": "^2.6.1",
+        "vscode": "^1.1.21"
     }
 }

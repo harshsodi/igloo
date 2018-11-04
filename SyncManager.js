@@ -7,6 +7,7 @@
 
 const vscode = require('vscode');
 const path = require("path");
+const simpleGit = require("simple-git");
 
 const constants = require("./constants");
 const HttpClient = require("./HttpClient");
@@ -24,6 +25,51 @@ class SyncManager {
 
         this._loadConfig()
         this.fs_manager = new FileSystemManager.FileSystemManager();
+        this.simple_git = simpleGit(this.utils.getRootPath());
+        this._registerOnFileSaveEvent();
+    }
+
+    _registerOnFileSaveEvent() {
+
+        var context = this;
+        vscode.workspace.onDidSaveTextDocument((textDocument) => {
+
+            var file_name = path.basename(textDocument.fileName);
+            if(file_name == "iglooconfig.txt") {
+                try {
+                    if(file_name == "iglooconfig.txt") {
+    
+                    }
+                    var config_new = JSON.parse(textDocument.getText());
+                    var track_changes_new = config_new.track_changes;
+    
+                    if(this.track_changes != track_changes_new) {
+                        
+                        if(!track_changes_new) {
+    
+                            // Delete git folder
+                            const root_path = context.utils.getRootPath();
+                            const git_path = path.join(root_path, ".git");
+                            const gitignore_path = path.join(root_path, ".gitignore");
+
+                            context.fs_manager.removeDirectory(git_path);
+                            context.fs_manager.removeFile(gitignore_path);
+
+                            // Set track_changes to false
+                            this.track_changes = false;
+                        }
+                        else {
+                            this.track_changes = true;
+                            this.initGitForTrackingChanges();
+                        }
+                    }
+                }
+                catch(exception) {
+                    vscode.window.showErrorMessage("Error while reading config.");
+                    console.log("Exception while reading saved config : " + exception.toString());
+                }
+            }
+        });
     }
 
     /*
@@ -37,6 +83,7 @@ class SyncManager {
             this.config.password
         );
         this.app_name = this.config.app_name;
+        this.track_changes = this.config.track_changes;
     }
 
     /*
@@ -52,7 +99,8 @@ class SyncManager {
                 "url" : "https://<instance>.service-now.com/",
                 "username" : "",
                 "password" : "",
-                "app_name" : ""
+                "app_name" : "",
+                "track_changes" : true
             }
         }
         const config = JSON.parse(config_content);
@@ -93,6 +141,97 @@ class SyncManager {
      */
     _loadFilesOnDiskDict() {
         filesOnDisk = this.fs_manager.getFileDirStructure();
+    }
+
+    initGitForTrackingChanges() {
+
+        const config = this._readConfig();
+
+        if(typeof config.track_changes == "undefined") {
+            this._updateConfigTrackChanges();
+            config.track_changes = true;
+        }
+
+        const track_changes = config.track_changes;
+        
+        if(track_changes) {
+
+            // If the track_changes is set to true
+            const root_path = this.utils.getRootPath();
+            const git_path = path.join(root_path, ".git");
+            if(!this.fs_manager.exist(git_path)) {
+
+                // If the git is not initiated
+                this.simple_git.init(false, ()=>{
+                    
+                    console.log("Initiated git");    
+                    this.simple_git.add(
+                        path.join(this.utils.getRootPath(), '*')
+                    ).commit("Initial Commit");
+
+                    // Create gitignore
+                    const gitignore_path = path.join(this.utils.getRootPath(), '.gitignore');
+                    const gitignore_content = "iglooconfig.txt\nregister.json\n.gitignore";
+                    this.fs_manager.writeFile(gitignore_path, gitignore_content);
+                })
+            } else {
+
+                console.log("Git already initiated.");
+            }
+
+            this.track_changes = true;
+        }
+    }
+
+    _updateConfigTrackChanges() {
+        var config = this._readConfig();
+        const git_path = path.join(this.utils.getRootPath(), ".git");
+        
+        var track_changes = true;
+        if(this.fs_manager.exist(git_path)) {
+            // track_changes: false
+            track_changes = false;
+        }
+        config['track_changes'] = track_changes;
+        
+        this.fs_manager.writeFile(
+            this.utils.getConfigPath(),
+            JSON.stringify(config, null, 4)
+        );
+    }
+
+    /*
+     * Crete the required directory structure.
+     * Re-create the entities that are missing
+     * Write the empty register file if not already present
+     */
+    createAndMaintainStructure() {
+        console.log("Creating structure.");
+        this._loadConfig();
+        const root_path = this.utils.getRootPath();
+
+        //get outdir path
+        const outpath = path.join(root_path, constants.outdir);
+
+        //create outdir
+        this.fs_manager.makeDir(outpath);
+
+        //create sub-directories
+        const file_types = constants.FILE_TYPES;
+        var dir_list_len = file_types.length;
+        for(var dir_index=0; dir_index < dir_list_len; dir_index++) {
+            this.fs_manager.makeDir(path.join(outpath, constants.TYPE_DIRECTORY_MAP[file_types[dir_index]]));
+        }
+
+        //create register file
+        this.fs_manager._createRegisterFile(outpath);
+    }
+
+    _commitFile(file_path, commit_message) {
+        // Commit the file
+        this.simple_git.add(
+            path.join(file_path)
+        ).commit(commit_message);
     }
 
     /*
@@ -141,6 +280,7 @@ class SyncManager {
         for(var i=0; i<file_list_length; i++) {
 
             try {
+                const file_name = result[i].sys_name; // TODO : Use in other places
                 if(filesOnDisk[file_type] && filesOnDisk[file_type][result[i].name]) {
                     console.log("File already present");
                     continue;
@@ -154,6 +294,14 @@ class SyncManager {
                 )
 
                 this.fs_manager.writeFile(file_path, result[i].script);
+
+                // Commit file
+                if(this.track_changes) {
+
+                    // If needed
+                    const commit_message = "Imported " + constants.TYPE_SIMPLE_MAP[file_type] + file_name;
+                    this._commitFile(file_path, commit_message);
+                }
 
                 if(!global_register[file_type]) {
                     global_register[file_type] = {}
@@ -233,6 +381,15 @@ class SyncManager {
 
                     try {
                         this.fs_manager.writeFile(file_path, res.script);
+
+                        // Commit file
+                        if(this.track_changes) {
+
+                            // If needed
+                            const commit_message = "Imported " + constants.TYPE_SIMPLE_MAP[file_type] + file_name; 
+                            this._commitFile(file_path, commit_message);
+                        }
+                        
                         var register = JSON.parse(this._readRegister());
                         const register_path = this.utils.getRegisterPath();
                         if(!register[file_type]) {
@@ -289,33 +446,6 @@ class SyncManager {
             console.log("Downloaded complete. (" + failures + " failed)");
             vscode.window.showInformationMessage("Downloaded complete. (" + failures + " failed)");
         });
-    }
-
-    /*
-     * Crete the required directory structure.
-     * Re-create the entities that are missing
-     * Write the empty register file if not already present
-     */
-    createAndMaintainStructure() {
-        console.log("Creating structure.");
-        this._loadConfig();
-        const root_path = this.utils.getRootPath();
-
-        //get outdir path
-        const outpath = path.join(root_path, constants.outdir);
-
-        //create outdir
-        this.fs_manager.makeDir(outpath);
-
-        //create sub-directories
-        const file_types = constants.FILE_TYPES;
-        var dir_list_len = file_types.length;
-        for(var dir_index=0; dir_index < dir_list_len; dir_index++) {
-            this.fs_manager.makeDir(path.join(outpath, constants.TYPE_DIRECTORY_MAP[file_types[dir_index]]));
-        }
-
-        //create register file
-        this.fs_manager._createRegisterFile(outpath);    
     }
 
     /*
@@ -435,6 +565,8 @@ class SyncManager {
 
         const file_type = this.utils.getFileTypeByDir(this.utils.getDirName());
         const file_name = this.utils.getFileName().replace("\.js", "");
+        const file_path = this.utils.getFilePath();
+        
         const table = file_type;
         const sys_id = register[file_type][file_name]['sys_id'];
         console.log("Attempting put");
@@ -449,6 +581,13 @@ class SyncManager {
             this.fs_manager.writeFile(register_path, JSON.stringify(register, null, 4))
             vscode.window.showInformationMessage("Uploaded " + file_name);
             console.log(remote_update_ime);
+
+            if(this.track_changes) {
+
+                // Commit if needed
+                const commit_message = "Updated " + constants.TYPE_SIMPLE_MAP[file_type] + " " + file_name;
+                this._commitFile(file_path,);
+            }
         }, err=>{
             vscode.window.showErrorMessage("Error (" + err + ") while uploading " + file_name);
             console.log("Failed to upload " + file_name);

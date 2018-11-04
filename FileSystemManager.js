@@ -10,6 +10,10 @@ class FileSystemManager {
         this.utils = new Utils.Utils();
     }
 
+    exist(path) {
+        return fs.existsSync(path);
+    }
+
     makeDir(dir_name) {
         if (!fs.existsSync(dir_name)){
             console.log("Creating " + dir_name);
@@ -86,6 +90,46 @@ class FileSystemManager {
         catch(exception) {
             console.log("Error while writing to : " + file_path);
             console.log(exception);
+        }
+    }
+
+    /**
+     * Remove a directiry
+     * @param {String} directory_path Path of directory to remove
+     */
+    removeDirectory(directory_path) {
+        // vscode.window.showErrorMessage("Removing it");
+        try {
+            var context = this;
+            if (fs.existsSync(directory_path)) {
+                fs.readdirSync(directory_path).forEach(function(file, index){
+                var curPath = directory_path + "/" + file;
+                if (fs.lstatSync(curPath).isDirectory()) { // recurse
+                    console.log("Removing dir : " + curPath);
+                    context.removeDirectory(curPath);
+                } else { // delete file
+                    console.log("Removing file " + curPath);
+                    fs.unlinkSync(curPath);
+                }
+                });
+                fs.rmdirSync(directory_path);
+            }
+        }
+        catch(exception) {
+            console.log("Excepton while removing directory : " + exception.toString());
+        }
+    }
+
+    /**
+     * Remove a file
+     * @param {String} file_path Path of the file to remove 
+     */
+    removeFile(file_path) {
+        try {
+            fs.unlinkSync(file_path);
+        }
+        catch(exception) {
+            console.log("Excepton while removing file : " + exception.toString());
         }
     }
 }
