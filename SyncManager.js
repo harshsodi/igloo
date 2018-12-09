@@ -48,12 +48,7 @@ class SyncManager {
                         if(!track_changes_new) {
     
                             // Delete git folder
-                            const root_path = context.utils.getRootPath();
-                            const git_path = path.join(root_path, ".git");
-                            const gitignore_path = path.join(root_path, ".gitignore");
-
-                            context.fs_manager.removeDirectory(git_path);
-                            context.fs_manager.removeFile(gitignore_path);
+                            this._removeGit();
 
                             // Set track_changes to false
                             this.track_changes = false;
@@ -183,6 +178,21 @@ class SyncManager {
         }
     }
 
+    /**
+     * Delete the git folder
+     * 
+     * @returns null
+     */
+    _removeGit() {
+
+        const root_path = this.utils.getRootPath();
+        const git_path = path.join(root_path, ".git");
+        const gitignore_path = path.join(root_path, ".gitignore");
+
+        this.fs_manager.removeDirectory(git_path);
+        this.fs_manager.removeFile(gitignore_path);
+    }
+
     _updateConfigTrackChanges() {
         var config = this._readConfig();
         const git_path = path.join(this.utils.getRootPath(), ".git");
@@ -229,9 +239,26 @@ class SyncManager {
 
     _commitFile(file_path, commit_message) {
         // Commit the file
+
         this.simple_git.add(
             path.join(file_path)
         ).commit(commit_message);
+    
+        // Check the status, if no more files untracked, re-init git to prevent unnecessary growing size of .git
+        this.simple_git.status( (err, status) => {
+
+            if(!err) {
+
+                if(!status.files.length) { // One of more files are untracked
+                    // Re-init git
+                    this._removeGit();
+                    this.initGitForTrackingChanges();
+                }
+
+            } else {
+                console.log("Error while checking status: " + err.toString());
+            }
+        });
     }
 
     /*
