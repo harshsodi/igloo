@@ -558,6 +558,54 @@ class SyncManager {
     }
 
     /*
+     * Checks if the given file is changed on the SNOW instance or not.
+     * Returns a promise, resolving to true/false based on whether the remote 
+     * file is updated or not updated respectively.
+     */
+    _isRemoteFileUpdated(file_name, file_path, table){
+        return new Promise((resolve, reject) => {
+            // fetching the latest remote script
+            this._downloadSingleFile(file_name, table).then(result => {
+                if(result.body.result.length > 0){
+                    console.log('finding the hash...');
+                    const script = result.body.result[0].script;
+                    // finding the hash of the current remote script
+                    // saving the file temporarily to find out the hashobject
+                    // better way would be to pass the script through stdin
+                    const tmp_file_path = path.join(
+                        this.utils.getRootPath(), 
+                        constants.outdir, 
+                        '.tmp'
+                    );
+                    try {
+                        this.fs_manager.writeFile(tmp_file_path, script);
+                        this.simple_git
+                            .outputHandler((command, stdout, stderr) => {
+                                stdout.on('data', (data) => {
+                                    const remoteHash = data.toString();
+                                    this.fs_manager.removeFile(tmp_file_path);
+                                    this.simple_git
+                                        .outputHandler((command, stdout, stderr) => {
+                                            stdout.on('data', (data) => {
+                                                const localHash = data.toString().split(' ')[1];
+                                                resolve(localHash.trim() !== remoteHash.trim());
+                                            })
+                                        })
+                                        .raw(['ls-files', '-s', file_path]);
+                                });
+                            })
+                            .raw(['hash-object', tmp_file_path]);
+                    }
+                    catch(err) {
+                        // show appropriate error message
+                        reject(err);
+                    }
+                }
+            });
+        });
+    }
+
+    /*
      * Upload the given file to the given table on SNOW
      */
     async uploadFile(script) {
@@ -596,6 +644,36 @@ class SyncManager {
         
         const table = file_type;
         const sys_id = register[file_type][file_name]['sys_id'];
+
+        let isRemoteUpdated = undefined;
+        await this._isRemoteFileUpdated(file_name, file_path, table).then((_isRemoteUpdated) => {
+            isRemoteUpdated = _isRemoteUpdated;
+        });
+        if(isRemoteUpdated){
+            // TODO: do something here
+            vscode.window.showWarningMessage("Remote file has been updated");
+            var selection = "";
+            await vscode.window.showQuickPick(['Overwrite remote file', 'Compare with remote', 'Abort']).then(
+                res => {
+                    selection = res ? res : "undefined";
+                    return res; //TODO : Remove
+                },
+                err => {
+                    console.log("No selection made");
+                    console.log(err);
+                    selection = "undefined";
+                    return "undefined"; //TODO : remove
+                }
+            );
+            
+            if(selection == "Abort" || selection == "undefined") {
+                vscode.window.showWarningMessage("Export operation aborted");
+                return;
+            } else if(selection == "Compare with remote") {
+                this.showDiff("Remote ↔ Local");
+                return;
+            }
+        }
         console.log("Attempting put");
         this.http_client.put(table, sys_id, script).then(result=>{
             var local_update_time = register[file_type][file_name]['sys_updated_on'];
